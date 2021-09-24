@@ -1,0 +1,13 @@
+<launch>
+  <!-- Author: VincentChan  -->
+
+  <!-- Bring up the Realsense organized PCL -->
+  <include file="$(find realsense2_camera)/launch/rs_rgbd.launch">
+  </include>
+
+  <!-- Start PCL Edge and Normal Estimation -->
+  <include file="$(find startup)/organized_edge_detector.launch">
+  </include>
+
+
+</launch>

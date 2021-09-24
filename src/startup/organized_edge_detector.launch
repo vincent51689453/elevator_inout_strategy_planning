@@ -11,25 +11,24 @@
         pkg="nodelet" type="nodelet"
         args="manager" output="screen" />
 
-  <!-- Downsampling -->
-  <node name="voxelgrid"
+  <!-- 1. Z Distance clipping -->
+  <node name="zaxis_filter_edge"
         pkg="nodelet" type="nodelet"
-        args="load pcl/VoxelGrid line_segment_manager"
-        output="screen">
+        args="load pcl/PassThrough sample_manager">
     <remap from="~input" to="/camera/depth_registered/points" />
     <rosparam>
+      keep_organized: true
       filter_field_name: z
-      filter_limit_min: 0.0
-      filter_limit_max: 3.5
-      leaf_size: 0.01
+      filter_limit_min: 0.1
+      filter_limit_max: 2.5
     </rosparam>
   </node>
 
-  <!-- 1. Edge detector -->
+  <!-- 2. Edge detector -->
   <node name="organized_edge_detector"
         pkg="nodelet" type="nodelet"
         args="load jsk_pcl/OrganizedEdgeDetector sample_manager">
-    <remap from="~input" to="/camera/depth_registered/points"/>
+    <remap from="~input" to="/zaxis_filter_edge/output"/>
     <rosparam>
       publish_normal: true
       use_nan_boundary: true
@@ -39,7 +38,7 @@
     </rosparam>
   </node>
 
-  <!-- 2. Normal estimation of chosen pointcloud -->
+  <!-- 3. Normal estimation of chosen pointcloud -->
   <!-- Use OMP to speed up the processing time-->
   <!-- Input: a chosen point cloud from pcl detection-->
   <!-- Output: the normal should send to normal concatenator for visualization-->
@@ -53,7 +52,7 @@
     </rosparam>
   </node>
 
-  <!-- 3. Normal visualization -->
+  <!-- 4. Normal visualization -->
   <!-- Input: the chosen point cloud from detection -->
   <!-- Normal: results from normal estimation omp-->
   <group if="$(arg gui)">
@@ -64,8 +63,8 @@
       <remap from="~normal" to="/normal_estimation_omp_vincent/output"/>
     </node>
 
-    <node name="rviz"
-          pkg="rviz" type="rviz"
-          args="-d $(find startup)rviz_config.rviz"/>
+  <node name="rviz"
+        pkg="rviz" type="rviz"
+        args="-d $(find startup)rviz_config.rviz"/>
   </group>
 </launch>

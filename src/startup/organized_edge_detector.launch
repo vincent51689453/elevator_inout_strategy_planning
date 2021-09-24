@@ -20,7 +20,7 @@
     <rosparam>
       filter_field_name: z
       filter_limit_min: 0.0
-      filter_limit_max: 5.0
+      filter_limit_max: 3.5
       leaf_size: 0.01
     </rosparam>
   </node>
@@ -66,6 +66,6 @@
 
     <node name="rviz"
           pkg="rviz" type="rviz"
-          args="-d $(find jsk_pcl_ros)/sample/rviz/organized_edge_detector.rviz"/>
+          args="-d $(find startup)rviz_config.rviz"/>
   </group>
 </launch>

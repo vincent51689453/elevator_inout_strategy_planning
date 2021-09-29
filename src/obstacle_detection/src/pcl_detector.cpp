@@ -20,11 +20,19 @@
 #include <tf_conversions/tf_eigen.h>
 #include <pcl/segmentation/extract_polygonal_prism_data.h>
 
+// Voxel Grid & Pass through filters
 float voxel_leaf_szie = 0.01;   //in terms of meter
 int z_pass_min = -1;            //in terms of meter
-int z_pass_max = 2.5;             //in terms of meter
+int z_pass_max = 2.5;           //in terms of meter
+
+// Segmentation
+float plane_dist_thresh = 0.0001;
 int plane_max_iter = 50;
-float plane_dist_thresh = 0.0001; 
+
+// Eculidean Distance Extraction
+float cluster_tol = 0.01;
+int cluster_min_size = 100;
+int cluster_max_size = 50000;
 
 ros::Publisher obstacle_pub;
 ros::Publisher background_pub;
@@ -62,6 +70,7 @@ void cloud_callback (sensor_msgs::PointCloud2 cloud_msg)
     pcl::PointCloud<pcl::PointXYZ>::Ptr cropped_cloud(new pcl::PointCloud<pcl::PointXYZ>(zf_cloud));
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_f (new pcl::PointCloud<pcl::PointXYZ>);
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_plane (new pcl::PointCloud<pcl::PointXYZ> ());
+    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_filtered (new pcl::PointCloud<pcl::PointXYZ>);
 
     // Create the segmentation object for the planar model and set all the parameters
     pcl::SACSegmentation<pcl::PointXYZ> seg;
@@ -97,11 +106,10 @@ void cloud_callback (sensor_msgs::PointCloud2 cloud_msg)
     extract.filter (*cloud_f);
     //3. PLANE SEGMENTATION [END]
 
-
     // Publish the data
     sensor_msgs::PointCloud2::Ptr output_msg(new sensor_msgs::PointCloud2);
+
     // Convert PCL to ros msg
-    //pcl::toROSMsg(zf_cloud,*output_msg);
     pcl::toROSMsg(*cloud_f,*output_msg);
     obstacle_pub.publish (output_msg);
 

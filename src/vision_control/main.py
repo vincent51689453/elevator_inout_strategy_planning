@@ -30,6 +30,8 @@ def obstacle_callback(data):
     pointcloudXYZ_np[:,1]=pointcloudXYZ['y']
     pointcloudXYZ_np[:,2]=pointcloudXYZ['z']    
     
+    print("Size of pointcloud:",pointcloudXYZ_np.shape)
+
 
 def main():
     # Init node with node_name
@@ -37,6 +39,9 @@ def main():
 
     # Subscribe obstacle pointcloud
     obstacle_sub = rospy.Subscriber(obstacle_topic, PointCloud2, obstacle_callback)
+
+    rospy.spin()
+
 
 if __name__ == '__main__':
     main()

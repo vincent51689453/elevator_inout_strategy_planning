@@ -22,9 +22,9 @@
 
 float voxel_leaf_szie = 0.01;   //in terms of meter
 int z_pass_min = -1;            //in terms of meter
-int z_pass_max = 1;             //in terms of meter
+int z_pass_max = 2.5;             //in terms of meter
 int plane_max_iter = 50;
-float plane_dist_thresh = 0.001; 
+float plane_dist_thresh = 0.0001; 
 
 ros::Publisher pub;
 

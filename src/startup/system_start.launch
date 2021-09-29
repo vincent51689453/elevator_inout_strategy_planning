@@ -6,8 +6,8 @@
   </include>
 
   <!-- Start PCL Edge and Normal Estimation -->
-  <include file="$(find startup)/organized_edge_detector.launch">
-  </include>
+  <!--<include file="$(find startup)/organized_edge_detector.launch">
+  </include> -->
 
   <!-- Start PCL Obstacle Segmentation -->
   <node pkg="obstacle_detection" type="obstacle_detection_node" name="obstacle_detection" output="screen" > </node>

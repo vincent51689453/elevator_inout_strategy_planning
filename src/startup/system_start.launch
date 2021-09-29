@@ -9,9 +9,7 @@
   <include file="$(find startup)/organized_edge_detector.launch">
   </include>
 
-  <!-- People Detection -->
-  <include file="$(find startup)/people_detection.launch">
-  </include>
-
+  <!-- Start PCL Obstacle Segmentation -->
+  <node pkg="obstacle_detection" type="obstacle_detection_node" name="obstacle_detection" output="screen" > </node>
 
 </launch>

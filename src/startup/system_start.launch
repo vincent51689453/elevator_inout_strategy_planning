@@ -12,4 +12,7 @@
   <!-- Start PCL Obstacle Segmentation -->
   <node pkg="obstacle_detection" type="obstacle_detection_node" name="obstacle_detection" output="screen" > </node>
 
+  <!-- RVIZ and it should not be enabled together with Edge and Normal Estimation-->
+  <node name="rviz" pkg="rviz" type="rviz" args="-d $(find startup)rviz_config.rviz"/>
+
 </launch>

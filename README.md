@@ -1,7 +1,7 @@
 # pcl_obstacle_avoidance
 It is a obstacle avoidance package based on PCL and realsense. This package is developing with UbiquityRobot Magni.
 
-# Prerequisites
+## Prerequisites
 - ROS Melodic
 
 - Ubiquity Robots Rasberry PI Image 2020-11-07-ubiquity-xenial-lxde 
@@ -27,3 +27,9 @@ sudo cp 99-realsense-libusb.rules /etc/udev/rules.d/
 - Setup a computer for this repository and act as a ROS node
 ** Please refer to https://github.com/laitathei/Gazebo-rosserial-rescue-robot/tree/main/yolov4-tiny.
 
+## Startup
+- Execute the launch file
+```
+source deve/setup.bash
+roslaunch startup system_start.launch
+```

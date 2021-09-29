@@ -26,7 +26,8 @@ int z_pass_max = 2.5;             //in terms of meter
 int plane_max_iter = 50;
 float plane_dist_thresh = 0.0001; 
 
-ros::Publisher pub;
+ros::Publisher obstacle_pub;
+ros::Publisher background_pub;
 
 void cloud_callback (sensor_msgs::PointCloud2 cloud_msg)
 {
@@ -102,8 +103,10 @@ void cloud_callback (sensor_msgs::PointCloud2 cloud_msg)
     // Convert PCL to ros msg
     //pcl::toROSMsg(zf_cloud,*output_msg);
     pcl::toROSMsg(*cloud_f,*output_msg);
+    obstacle_pub.publish (output_msg);
 
-    pub.publish (output_msg);
+    pcl::toROSMsg(*cloud_plane,*output_msg);
+    background_pub.publish(output_msg);
 }
 
 int main (int argc, char** argv)
@@ -116,7 +119,8 @@ int main (int argc, char** argv)
     ros::Subscriber sub = nh.subscribe ("/camera/depth_registered/points", 1, cloud_callback);
 
     // Create a ROS publisher for the output point cloud
-    pub = nh.advertise<sensor_msgs::PointCloud2> ("/obstacle_detection/output", 1);
+    obstacle_pub = nh.advertise<sensor_msgs::PointCloud2> ("/obstacle_detection/obstacle", 1);
+    background_pub = nh.advertise<sensor_msgs::PointCloud2> ("/obstacle_detection/background", 1); 
        
     // Spin
     ros::spin ();

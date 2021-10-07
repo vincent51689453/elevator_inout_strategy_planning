@@ -1,10 +1,9 @@
 // C++ STL
 #include <iostream>
 #include <string>
+#include <map>
 #include <vector>
-
-// User libraries
-#include "point_processing.h"
+#include <math.h>
 
 // ROS 
 #include <ros/ros.h>
@@ -25,6 +24,11 @@ std::string obstacle_topic = "/obstacle_detection/obstacle";
 
 // User parameters
 int frame_id = 0;
+std::map<double,double> linear_scan;
+std::map<double,double>::iterator iter;
+std::vector<double> distances;
+double _x = 0;
+double _z = 0;
 
 
 void cloud_callback (const sensor_msgs::PointCloud2 &cloud_msg)
@@ -37,11 +41,30 @@ void cloud_callback (const sensor_msgs::PointCloud2 &cloud_msg)
     sensor_msgs::PointCloud obstacle_cloud;
     sensor_msgs::convertPointCloud2ToPointCloud(cloud_msg,obstacle_cloud);
 
-    // Test to print point 0 (x,y,z).
-    std:: cout << "Point 0 x:" << obstacle_cloud.points[0].x << " y:" << obstacle_cloud.points[0].y << " z:" << obstacle_cloud.points[0].z << std::endl; 
+    // Store all points data(x,z) into a vector for path planning, eliminate y axis
+    for(int i=0;i<obstacle_cloud.points.size();i++)
+    {
+        //Show XYZ data
+        //std:: cout << "[DEBUG Point #" << i << std::endl;
+        //std:: cout << "x:" << obstacle_cloud.points[i].x << " y:" << obstacle_cloud.points[i].y << " z:" << obstacle_cloud.points[i].z << std::endl; 
+        double x = obstacle_cloud.points[i].x;
+        double z = obstacle_cloud.points[i].z;
+        linear_scan.insert(std::make_pair(x,z));
 
+       
+        //Find distance betwwen previous point and current point
+        double d = 0.0;
+        d = sqrt((x-_x)*(x-_x)+(z-_z)*(z-_z));    //WRONG
+        std::cout << d << std::endl;
+        distances.push_back(d);
 
+        //Search for maximum distance in vector<double>dsitances;
+        std::cout << "Maximum gap along X: " << distances[distances.size()-1] << std::endl;
 
+        //Update previous values by current values
+        _x = x;
+        _z = z;
+    }
 
     frame_id++;
 }
@@ -49,8 +72,9 @@ void cloud_callback (const sensor_msgs::PointCloud2 &cloud_msg)
 int main (int argc, char** argv)
 {
     // Initialize ROS
-    ros::init (argc, argv, "ros_node_name");
+    ros::init (argc, argv, ros_node_name);
     ros::NodeHandle nh;
+    std::cout << "[SYSTEM] " << ros_node_name << " is started!" << std::endl;
 
     // Create a ROS subscriber to get obstacles
     ros::Subscriber sub = nh.subscribe (obstacle_topic, 1, cloud_callback);

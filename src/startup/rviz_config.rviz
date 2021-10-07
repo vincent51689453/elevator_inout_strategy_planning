@@ -5,6 +5,7 @@ Panels:
     Property Tree Widget:
       Expanded:
         - /Global Options1
+        - /CameraInfo1
         - /TF1/Frames1
       Splitter Ratio: 0.5
     Tree Height: 804
@@ -26,7 +27,7 @@ Panels:
     Experimental: false
     Name: Time
     SyncMode: 0
-    SyncSource: RGBImage
+    SyncSource: InputCloud
 Preferences:
   PromptSaveOnExit: true
 Toolbars:
@@ -64,7 +65,7 @@ Visualization Manager:
       Color: 255; 255; 255
       Color Transformer: RGB8
       Decay Time: 0
-      Enabled: true
+      Enabled: false
       Invert Rainbow: false
       Max Color: 255; 255; 255
       Max Intensity: 4096
@@ -81,7 +82,7 @@ Visualization Manager:
       Unreliable: false
       Use Fixed Frame: true
       Use rainbow: true
-      Value: true
+      Value: false
     - Alpha: 1
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
@@ -265,8 +266,8 @@ Visualization Manager:
     - Alpha: 1
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
-        Max Value: 0.30744192004203796
-        Min Value: -0.7764879465103149
+        Max Value: 0.061077918857336044
+        Min Value: -0.7852252721786499
         Value: true
       Axis: Z
       Channel Name: intensity
@@ -398,12 +399,12 @@ Visualization Manager:
       update interval: 0.03999999910593033
       width: 256
     - Class: jsk_rviz_plugin/CameraInfo
-      Enabled: false
+      Enabled: true
       Image Topic: /camera/color/image_rect_color
       Name: CameraInfo
       Topic: /camera/aligned_depth_to_color/camera_info
       Unreliable: false
-      Value: false
+      Value: true
       alpha: 0.5
       color: 85; 255; 255
       edge color: 125; 125; 125
@@ -502,10 +503,10 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.10020162910223007
+      Pitch: 0.1152011901140213
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 3.133577346801758
+      Yaw: 3.0985782146453857
     Saved: ~
 Window Geometry:
   Displays:

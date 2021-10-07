@@ -30,7 +30,7 @@ float plane_dist_thresh = 0.0001;
 int plane_max_iter = 50;
 
 // Eculidean Distance Extraction
-float cluster_tol = 0.01;
+float cluster_tol = 0.08;
 int cluster_min_size = 100;
 int cluster_max_size = 50000;
 

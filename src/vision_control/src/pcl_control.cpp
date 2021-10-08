@@ -34,7 +34,7 @@ void cloud_callback (const sensor_msgs::PointCloud2 &cloud_msg)
     std::map<double,double>::iterator iter;
     std::vector<double> distances;
 
-    std::cout << "Index: " << frame_id << std::endl;
+    std::cout << "[SYSTEM] Index: " << frame_id << std::endl;
 
     // Convert pointcloud2 to pointcloud 
     // Pointcloud is the specific datatype for actual usage
@@ -73,8 +73,8 @@ void cloud_callback (const sensor_msgs::PointCloud2 &cloud_msg)
 
     // Search for maximum distance in vector<double>dsitances;
     std::sort(distances.begin(),distances.end());
-    std::cout << "Size of vector: " << distances.size() << std::endl;
-    std::cout << "Maximum gap along X [m]: " << distances[distances.size()-1] << std::endl;
+    std::cout << "[SYSTEM] Size of vector: " << distances.size() << std::endl;
+    std::cout << "[SYSTEM] Maximum gap along X: " << distances[distances.size()-1] << "m" << std::endl;
     std::cout << std::endl;
 
     // TO-DO: Find out the relative position and orientation of the gap for the robot

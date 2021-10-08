@@ -23,9 +23,6 @@ std::string ros_node_name = "pcl_controller";
 std::string obstacle_topic = "/obstacle_detection/obstacle";
 
 // User parameters
-std::map<double,double> linear_scan;
-std::map<double,double>::iterator iter;
-std::vector<double> distances;
 double _x = 0;
 double _z = 0;
 int frame_id = 0;
@@ -33,6 +30,10 @@ int frame_id = 0;
 
 void cloud_callback (const sensor_msgs::PointCloud2 &cloud_msg)
 {
+    std::map<double,double> linear_scan;
+    std::map<double,double>::iterator iter;
+    std::vector<double> distances;
+
     std::cout << "Index: " << frame_id << std::endl;
 
     // Convert pointcloud2 to pointcloud 
@@ -57,17 +58,25 @@ void cloud_callback (const sensor_msgs::PointCloud2 &cloud_msg)
     {       
         //Find distance betwwen previous point and current point along X
         double d = 0.0;
-        d = abs(iter->first - _x)*100;
+        if(iter->first > _x)
+        {
+            d = iter->first - _x;
+        }else{
+            d = 0;
+        }
         distances.push_back(d);
-
-        //Search for maximum distance in vector<double>dsitances;
-        std::cout << "Maximum gap along X [cm]: " << distances[distances.size()-1] << std::endl;
 
         //Update previous values by current values in linear_scan
         _x = iter->first;
         _z = iter->second;
     }
 
+    // Search for maximum distance in vector<double>dsitances;
+    std::sort(distances.begin(),distances.end());
+    std::cout << "Size of vector: " << distances.size() << std::endl;
+    std::cout << "Maximum gap along X [m]: " << distances[distances.size()-1] << std::endl;
+    std::cout << std::endl;
+    
     frame_id++;
 }
 

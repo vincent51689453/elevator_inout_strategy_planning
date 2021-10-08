@@ -33,3 +33,9 @@ sudo cp 99-realsense-libusb.rules /etc/udev/rules.d/
 source deve/setup.bash
 roslaunch startup system_start.launch
 ```
+
+- Bring up PCL vision control (developing)
+```
+rosrun vision_control vision_control_node
+```
+

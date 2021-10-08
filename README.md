@@ -25,17 +25,22 @@ sudo cp 99-realsense-libusb.rules /etc/udev/rules.d/
 
 - Setup Raspberry Pi in UbiquityRobot as ROS master
 - Setup a computer for this repository and act as a ROS node
+
 ** Please refer to https://github.com/laitathei/Gazebo-rosserial-rescue-robot/tree/main/yolov4-tiny.
 
 ## Startup
-- Execute the launch file
+Execute the launch file to bringup all the nodes (NOT COMPLETED)
 ```
 source deve/setup.bash
 roslaunch startup system_start.launch
+rosrun vision_control vision_control_node
 ```
 
-- Bring up PCL vision control (developing)
+## Remarks for developer
+1. Bring up PCL vision control (DEVELOPING)
 ```
+source deve/setup.bash
+roslaunch startup system_start.launch
 rosrun vision_control vision_control_node
 ```
 

@@ -76,6 +76,11 @@ void cloud_callback (const sensor_msgs::PointCloud2 &cloud_msg)
     std::cout << "Size of vector: " << distances.size() << std::endl;
     std::cout << "Maximum gap along X [m]: " << distances[distances.size()-1] << std::endl;
     std::cout << std::endl;
+
+    // TO-DO: Find out the relative position and orientation of the gap for the robot
+
+
+    // TO-DO: Drive the robot to that position and orientation
     
     frame_id++;
 }

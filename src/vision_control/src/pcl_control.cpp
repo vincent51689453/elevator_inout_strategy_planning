@@ -48,7 +48,7 @@ const double robot_Width = 0.55;                                // Robot Width
 void cloud_callback (const sensor_msgs::PointCloud2 &cloud_msg)
 {
     std::map<double,double> linear_scan;
-    std::map<double,double>::iterator iter;double max_d = 0;
+    std::map<double,double>::iterator iter;
 
     // Navigation Marker
     visualization_msgs::Marker navigation_marker;
@@ -80,9 +80,12 @@ void cloud_callback (const sensor_msgs::PointCloud2 &cloud_msg)
         //Show XYZ data
         //std:: cout << "[DEBUG Point #" << i << std::endl;
         //std:: cout << "x:" << obstacle_cloud.points[i].x << " y:" << obstacle_cloud.points[i].y << " z:" << obstacle_cloud.points[i].z << std::endl; 
-        double y = obstacle_cloud.points[i].y;
-        double x = obstacle_cloud.points[i].x;
-        linear_scan.insert(std::make_pair(y,x));
+        if(obstacle_cloud.points[i].z == 0)
+        {
+            double y = obstacle_cloud.points[i].y;
+            double x = obstacle_cloud.points[i].x;
+            linear_scan.insert(std::make_pair(y,x));
+        }
     }
 
     // Locate the 'empty' region of the pointcloud
@@ -118,11 +121,6 @@ void cloud_callback (const sensor_msgs::PointCloud2 &cloud_msg)
     std::cout << "Max d: " << max_d << " | Navigate Y: " << mid_y << " | Naviate Depth: " << mid_x << std::endl;
     std::cout << std::endl; 
 
-
-    // TO-DO: Find out the relative position and orientation of the gap for the robot
-
-
-    // TO-DO: Drive the robot to that position and orientation
     
     //Publish navigation marker
     navigation_marker.points.push_back(arrow_start);

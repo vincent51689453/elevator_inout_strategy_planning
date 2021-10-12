@@ -130,8 +130,8 @@ void cloud_callback (const sensor_msgs::PointCloud2 &cloud_msg)
     navigation_marker.scale.x = 0.03;
     navigation_marker.scale.y = 0.05;
     navigation_marker.scale.z = 0.1;
-    navigation_marker.color.r = 1.0;
-    navigation_marker.color.g = 0.0;
+    navigation_marker.color.r = 0.2;
+    navigation_marker.color.g = 1.0;
     navigation_marker.color.b = 1.0;
     navigation_marker.color.a = 1.0;
     navigate_marker_pub.publish(navigation_marker);

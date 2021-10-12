@@ -13,44 +13,76 @@
 #include <sensor_msgs/PointCloud2.h> 
 #include <sensor_msgs/PointCloud.h>
 #include <sensor_msgs/point_cloud_conversion.h>
+#include <visualization_msgs/Marker.h>
+#include <geometry_msgs/Point.h>
 
 // PCL specific includes
 #include <pcl_conversions/pcl_conversions.h> 
 #include "pcl_ros/transforms.h"
 
 // Node info
-std::string ros_node_name = "pcl_controller";
-std::string obstacle_topic = "/obstacle_detection/obstacle";
+std::string ros_node_name = "pcl_controller";                   // Node Name
+std::string obstacle_topic = "/obstacle_detection/obstacle";    // PCL Obstacle Topic
+std::string navigate_topic = "/navigation_marker";              // Navigation Vector Topic
+ros::Publisher navigate_marker_pub;                             // PCL Obstacle Subsriber
+ros::Subscriber pcl_sub;                                        // Navigation Vector Publisher
 
 // User parameters
-double _x = 0;
-double _z = 0;
-int frame_id = 0;
+double _y = 0;                                                  // Previous y of a point
+double _x = 0;                                                  // Previous x of a point (depth)
+int frame_id = 0;                                               // Frame index
+double max_d = 0;                                               // Maximum gap
+double mid_y = 0;                                               // mid_y of the gap
+double mid_x = 0;                                               // mid_x of the gap (depth)
+const double robot_Width = 0.55;                                // Robot Width
+
+/*
+ * Coordinate system in PCL
+ * Green : Y (Left/Right)
+ * Red: X (Depth)
+ * Blue: Z (Up/Down)
+ * 
+*/
 
 
 void cloud_callback (const sensor_msgs::PointCloud2 &cloud_msg)
 {
     std::map<double,double> linear_scan;
-    std::map<double,double>::iterator iter;
-    std::vector<double> distances;
+    std::map<double,double>::iterator iter;double max_d = 0;
 
-    std::cout << "[SYSTEM] Index: " << frame_id << std::endl;
-
+    // Navigation Marker
+    visualization_msgs::Marker navigation_marker;
+    navigation_marker.header.frame_id = "/camera_link";
+    navigation_marker.header.stamp = ros::Time::now();
+    navigation_marker.ns = "basic_shapes";
+    navigation_marker.id = 0;
+    navigation_marker.type = visualization_msgs::Marker::ARROW;
+    navigation_marker.action = visualization_msgs::Marker::ADD;
+    navigation_marker.lifetime = ros::Duration();
+    
+    //navigation_marker starting points
+    geometry_msgs::Point arrow_start;
+    arrow_start.x = arrow_start.y = arrow_start.z = 0;
+    //navigation_marker starting points
+    geometry_msgs::Point arrow_end;
+    arrow_end.x = arrow_end.y = arrow_end.z = 0;
+    
+    
     // Convert pointcloud2 to pointcloud 
     // Pointcloud is the specific datatype for actual usage
     // Pointcloud2 is a general representation containing a header for ROS
     sensor_msgs::PointCloud obstacle_cloud;
     sensor_msgs::convertPointCloud2ToPointCloud(cloud_msg,obstacle_cloud);
 
-    // Store all points data(x,z) into a vector for path planning, eliminate y axis
+    // Store all points data(y,x) into a vector for path planning, eliminate y axis
     for(int i=0;i<obstacle_cloud.points.size();i++)
     {
         //Show XYZ data
         //std:: cout << "[DEBUG Point #" << i << std::endl;
         //std:: cout << "x:" << obstacle_cloud.points[i].x << " y:" << obstacle_cloud.points[i].y << " z:" << obstacle_cloud.points[i].z << std::endl; 
+        double y = obstacle_cloud.points[i].y;
         double x = obstacle_cloud.points[i].x;
-        double z = obstacle_cloud.points[i].z;
-        linear_scan.insert(std::make_pair(x,z));
+        linear_scan.insert(std::make_pair(y,x));
     }
 
     // Locate the 'empty' region of the pointcloud
@@ -58,29 +90,51 @@ void cloud_callback (const sensor_msgs::PointCloud2 &cloud_msg)
     {       
         //Find distance betwwen previous point and current point along X
         double d = 0.0;
-        if(iter->first > _x)
+        if(iter->first > _y)
         {
-            d = iter->first - _x;
+            d = iter->first - _y;
         }else{
             d = 0;
         }
-        distances.push_back(d);
+
+        // Find maximum d
+        if (d>max_d)
+        {
+            max_d = d;
+            mid_y = (iter->first + _y)*0.5;
+            mid_x = (iter->second + _x)*0.5;
+            //Update navigation_marker end points
+            arrow_end.x = 0.6;
+            arrow_end.y = mid_y;
+            arrow_end.z = 0;
+        }
 
         //Update previous values by current values in linear_scan
-        _x = iter->first;
-        _z = iter->second;
+        _y = iter->first;
+        _x = iter->second;
     }
 
-    // Search for maximum distance in vector<double>dsitances;
-    std::sort(distances.begin(),distances.end());
-    std::cout << "[SYSTEM] Size of vector: " << distances.size() << std::endl;
-    std::cout << "[SYSTEM] Maximum gap along X: " << distances[distances.size()-1] << "m" << std::endl;
-    std::cout << std::endl;
+    std::cout << "[OUTPUT] Index: " << frame_id <<  std::endl;
+    std::cout << "Max d: " << max_d << " | Navigate Y: " << mid_y << " | Naviate Depth: " << mid_x << std::endl;
+    std::cout << std::endl; 
+
 
     // TO-DO: Find out the relative position and orientation of the gap for the robot
 
 
     // TO-DO: Drive the robot to that position and orientation
+    
+    //Publish navigation marker
+    navigation_marker.points.push_back(arrow_start);
+    navigation_marker.points.push_back(arrow_end);
+    navigation_marker.scale.x = 0.03;
+    navigation_marker.scale.y = 0.05;
+    navigation_marker.scale.z = 0.1;
+    navigation_marker.color.r = 1.0;
+    navigation_marker.color.g = 0.0;
+    navigation_marker.color.b = 1.0;
+    navigation_marker.color.a = 1.0;
+    navigate_marker_pub.publish(navigation_marker);
     
     frame_id++;
 }
@@ -93,7 +147,10 @@ int main (int argc, char** argv)
     std::cout << "[SYSTEM] " << ros_node_name << " is started!" << std::endl;
 
     // Create a ROS subscriber to get obstacles
-    ros::Subscriber sub = nh.subscribe (obstacle_topic, 1, cloud_callback);
+    pcl_sub = nh.subscribe (obstacle_topic, 1, cloud_callback);
+
+    // Create a ROS publisher to publish control intention
+    navigate_marker_pub = nh.advertise<visualization_msgs::Marker>(navigate_topic,1);
 
     // Spin
     ros::spin ();

@@ -30,7 +30,6 @@ ros::Subscriber pcl_sub;                                        // Navigation Ve
 
 // User parameters
 double _y = 0;                                                  // Previous y of a point
-double _x = 0;                                                  // Previous x of a point (depth)
 int frame_id = 0;                                               // Frame index
 double max_d = 0;                                               // Maximum gap
 double mid_y = 0;                                               // mid_y of the gap
@@ -95,9 +94,32 @@ void cloud_callback (const sensor_msgs::PointCloud2 &cloud_msg)
 
         // Only consider Y axis [left & right] and X axis [depth]
         linear_scan.insert(std::make_pair(pointcloudY,pointcloudZ));
-        //std:: cout << "x:" << obstacle_cloud.points[i].x << " y:" << obstacle_cloud.points[i].y << " z:" << obstacle_cloud.points[i].z << std::endl; 
- 
     }
+
+    // Searching for 'GAP' between obstacles
+    for(iter=linear_scan.begin();iter!=linear_scan.end();iter++)
+    {
+        double d = 0.0;
+        // Find distance between previous point and current point along Y
+        (iter->first>_y)?d = iter->first-_y:d=0;
+
+
+        // Find maximum d
+        if(d>max_d)
+        {
+            max_d = d;
+            mid_y = (iter->first+_y)*0.5;
+            // Update navigation_marker end points
+            arrow_end.x = 0.6;
+            arrow_end.y = mid_y;
+            arrow_end.z = 0;        
+        }
+
+        // Update previous value
+        _y = iter->first;
+
+    }
+
             
     //Publish navigation marker
     navigation_marker.points.push_back(arrow_start);

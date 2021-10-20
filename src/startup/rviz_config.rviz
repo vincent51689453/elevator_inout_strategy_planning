@@ -5,6 +5,7 @@ Panels:
     Property Tree Widget:
       Expanded:
         - /Global Options1
+        - /Obstacles1
         - /TF1/Frames1
         - /NavigationVector1
       Splitter Ratio: 0.5
@@ -266,8 +267,8 @@ Visualization Manager:
     - Alpha: 1
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
-        Max Value: 0.8006694316864014
-        Min Value: -0.7999710440635681
+        Max Value: 0.7915534377098083
+        Min Value: -0.7935757040977478
         Value: true
       Axis: Z
       Channel Name: intensity
@@ -287,7 +288,7 @@ Visualization Manager:
       Selectable: true
       Size (Pixels): 3
       Size (m): 0.009999999776482582
-      Style: Flat Squares
+      Style: Points
       Topic: /obstacle_detection/obstacle
       Unreliable: false
       Use Fixed Frame: true
@@ -462,10 +463,10 @@ Visualization Manager:
       Value: true
     - Class: rviz/Marker
       Enabled: true
-      Marker Topic: visualization_marker
+      Marker Topic: /navigation_marker
       Name: NavigationVector
       Namespaces:
-        {}
+        basic_shapes: true
       Queue Size: 100
       Value: true
   Enabled: true
@@ -496,25 +497,25 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 4.881402492523193
+      Distance: 4.459782123565674
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 3.1734299659729004
-        Y: -0.24145573377609253
-        Z: 0.21319304406642914
+        X: 2.122056484222412
+        Y: 0.22272837162017822
+        Z: -0.5555062294006348
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.12520168721675873
+      Pitch: 0.18979674577713013
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 3.013582944869995
+      Yaw: 3.203597068786621
     Saved: ~
 Window Geometry:
   Displays:

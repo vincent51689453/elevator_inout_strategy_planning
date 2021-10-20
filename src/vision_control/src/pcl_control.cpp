@@ -4,6 +4,7 @@
 #include <map>
 #include <vector>
 #include <math.h>
+#include <time.h>
 
 // ROS 
 #include <ros/ros.h>
@@ -38,11 +39,13 @@ const double robot_Width = 0.55;                                // Robot Width
 
 /*
  * Coordinate system in PCL
- * Green : Y (Left/Right)
- * Red: X (Depth)
- * Blue: Z (Up/Down)
+ * Green : Y (PCL Left/Right)
+ * Red   : X (PCL Depth)
+ * Blue  : Z (PCL Up/Down)
  * 
 */
+
+
 
 
 void cloud_callback (const sensor_msgs::PointCloud2 &cloud_msg)
@@ -63,10 +66,11 @@ void cloud_callback (const sensor_msgs::PointCloud2 &cloud_msg)
     //navigation_marker starting points
     geometry_msgs::Point arrow_start;
     arrow_start.x = arrow_start.y = arrow_start.z = 0;
+
     //navigation_marker starting points
     geometry_msgs::Point arrow_end;
     arrow_end.x = arrow_end.y = arrow_end.z = 0;
-    
+
     
     // Convert pointcloud2 to pointcloud 
     // Pointcloud is the specific datatype for actual usage
@@ -80,48 +84,21 @@ void cloud_callback (const sensor_msgs::PointCloud2 &cloud_msg)
         //Show XYZ data
         //std:: cout << "[DEBUG Point #" << i << std::endl;
         //std:: cout << "x:" << obstacle_cloud.points[i].x << " y:" << obstacle_cloud.points[i].y << " z:" << obstacle_cloud.points[i].z << std::endl; 
-        if(obstacle_cloud.points[i].z == 0)
-        {
-            double y = obstacle_cloud.points[i].y;
-            double x = obstacle_cloud.points[i].x;
-            linear_scan.insert(std::make_pair(y,x));
-        }
+        double y = obstacle_cloud.points[i].y;
+        double x = obstacle_cloud.points[i].x;
+        double z = obstacle_cloud.points[i].z;
+
+        // Convert pointcloud2 XYZ to pointcloud XYZ
+        double pointcloudX = z;
+        double pointcloudY = -1*x;
+        double pointcloudZ = -1*y;
+
+        // Only consider Y axis [left & right] and X axis [depth]
+        linear_scan.insert(std::make_pair(pointcloudY,pointcloudZ));
+        //std:: cout << "x:" << obstacle_cloud.points[i].x << " y:" << obstacle_cloud.points[i].y << " z:" << obstacle_cloud.points[i].z << std::endl; 
+ 
     }
-
-    // Locate the 'empty' region of the pointcloud
-    for(iter=linear_scan.begin();iter!=linear_scan.end();iter++)
-    {       
-        //Find distance betwwen previous point and current point along X
-        double d = 0.0;
-        if(iter->first > _y)
-        {
-            d = iter->first - _y;
-        }else{
-            d = 0;
-        }
-
-        // Find maximum d
-        if (d>max_d)
-        {
-            max_d = d;
-            mid_y = (iter->first + _y)*0.5;
-            mid_x = (iter->second + _x)*0.5;
-            //Update navigation_marker end points
-            arrow_end.x = 0.6;
-            arrow_end.y = mid_y;
-            arrow_end.z = 0;
-        }
-
-        //Update previous values by current values in linear_scan
-        _y = iter->first;
-        _x = iter->second;
-    }
-
-    std::cout << "[OUTPUT] Index: " << frame_id <<  std::endl;
-    std::cout << "Max d: " << max_d << " | Navigate Y: " << mid_y << " | Naviate Depth: " << mid_x << std::endl;
-    std::cout << std::endl; 
-
-    
+            
     //Publish navigation marker
     navigation_marker.points.push_back(arrow_start);
     navigation_marker.points.push_back(arrow_end);
@@ -133,7 +110,7 @@ void cloud_callback (const sensor_msgs::PointCloud2 &cloud_msg)
     navigation_marker.color.b = 1.0;
     navigation_marker.color.a = 1.0;
     navigate_marker_pub.publish(navigation_marker);
-    
+     
     frame_id++;
 }
 

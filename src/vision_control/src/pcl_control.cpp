@@ -37,7 +37,9 @@ double gap_depth = 0;                                           // Depth of the 
 const double right_max = -0.8;                                  // Margin for robot vision of right
 const double left_max = 0.8;                                    // Margin for robot vision of left
 const double z_cutoff = 1;                                      // Z cutoff distance in meter
-enum gapType {PCL_ALGO, LEFT_MARGIN, RIGHT_MARGIN,EMPTY}        // Gap type
+const double gap_min = 0.8;                                     // Minimum gap for robot to pass through it
+enum gapType {PCL_ALGO, LEFT_MARGIN, RIGHT_MARGIN,EMPTY,BLOCK}  // Gap type
+
 /*
  * Coordinate system in PCL
  * Green : Y (PCL Left/Right)
@@ -49,6 +51,7 @@ enum gapType {PCL_ALGO, LEFT_MARGIN, RIGHT_MARGIN,EMPTY}        // Gap type
 void robot_control(distance,direction,gapType gap)
 {
     // ROBOT CONTROL
+    // TO - DO
 }
 
 void cloud_callback (const sensor_msgs::PointCloud2 &cloud_msg)
@@ -141,6 +144,7 @@ void cloud_callback (const sensor_msgs::PointCloud2 &cloud_msg)
     // If no valid linear_scan, just go forward
     if(valid_linear_scan)
     {
+        max_d = 0;
         // Searching for 'GAP' between obstacles
         for(iter=linear_scan.begin();iter!=linear_scan.end();iter++)
         {
@@ -191,18 +195,44 @@ void cloud_callback (const sensor_msgs::PointCloud2 &cloud_msg)
         {
             gap_mid = (right_max+end_y)*0.5;
             gap_depth = end_z;
-            // Show determined solution
-            std::cout << "[OUTPUT] Right margin space -> mid: " << gap_mid << " | depth: " << gap_depth << std::endl;
+            // Check the gap is enought to pass through
+            if(right_margin_d>gap_min)
+            {
+                // Show determined solution
+                std::cout << "[VISION] Right margin space -> mid: " << gap_mid << " | depth: " << gap_depth << std::endl;
+                robot_control(right_margin_d,gap_mid,RIGHT_MARGIN);
+            }else{
+                std::cout << "[VISION] NO SOLUTIONS!" << std::endl;
+                robot_control(right_margin_d,gap_mid,BLOCK);
+            }
         }
         else if(((left_margin_d)>right_margin_d)&&((left_margin_d)>max_d))
         {
             gap_mid = (left_max+start_y)*0.5;
             gap_depth = start_z;
-            // Show determined solution
-            std::cout << "[OUTPUT] Left margin space -> mid: " << gap_mid << " | depth: " << gap_depth << std::endl;
+            // Check the gap is enought to pass through
+            if(left_margin_d>gap_min)         
+            {
+                // Show determined solution
+                std::cout << "[VISION] Left margin space -> mid: " << gap_mid << " | depth: " << gap_depth << std::endl;
+                robot_control(left_margin_d,gap_mid,LEFT_MARGIN);            // Show determined solution
+            }else{
+                std::cout << "[VISION] NO SOLUTIONS!" << std::endl;
+                robot_control(left_margin_d,gap_mid,BLOCK);
+            }
         }else
         {
-            std::cout << "[OUTPUT] PCL space -> mid: " << gap_mid << " | depth: " << gap_depth << std::endl;
+            // Check the gap is enought to pass through
+            if(gap_mid>gap_min)
+            {
+                // Show determined solution
+                std::cout << "[VISION] PCL space -> mid: " << gap_mid << " | depth: " << gap_depth << std::endl;
+                robot_control(max_d,gap_mid,PCL_ALGO);
+            }else{
+                std::cout << "[VISION] NO SOLUTIONS!" << std::endl;
+                robot_control(max_d,gap_mid,BLOCK);
+            }
+            }
         }
         std::cout << std::endl;
         // Publish navigation marker
@@ -221,8 +251,9 @@ void cloud_callback (const sensor_msgs::PointCloud2 &cloud_msg)
         navigate_marker_pub.publish(navigation_marker);
 
     }else{
-        std::cout << "[OUTPUT] Out of range: FORWARD!" << std::endl;
+        std::cout << "[VISION] Out of range: FORWARD!" << std::endl;
         std::cout << std::endl;
+        robot_control(1000,0,EMPTY);
         // Publish navigation marker
         arrow_end.x = 1.0;
         arrow_end.y = 0;

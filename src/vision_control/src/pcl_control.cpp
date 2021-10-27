@@ -100,12 +100,12 @@ void robot_control(double distance,double direction,gapType gap)
         {
             // Left
             robot_velocity.linear.x = linear_x_basic;
-            robot_velocity.angular.z = angular_z_basic+1.5;
+            robot_velocity.angular.z = angular_z_basic*gap_mid;
             std::cout << "[ROBOT] Action: Left-PCL" << std::endl;
         }else{
             // Right
             robot_velocity.linear.x = linear_x_basic;
-            robot_velocity.angular.z = -1*(angular_z_basic+1.5);
+            robot_velocity.angular.z = angular_z_basic*gap_mid;
             std::cout << "[ROBOT] Action: Right-PCL" << std::endl;
         }
     }

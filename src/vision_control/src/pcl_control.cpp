@@ -43,7 +43,7 @@ const double gap_min = 0.8;                                     // Minimum gap f
 enum gapType {PCL_ALGO, LEFT_MARGIN, RIGHT_MARGIN,EMPTY,BLOCK}; // Gap type
 
 // Control parameters
-double linear_x_basic = 0.3;                                    // Basic m/s along X
+double linear_x_basic = 0.2;                                    // Basic m/s along X
 double angular_z_basic = 0.1;                                   // Basuc rad/s along Z
 
 /*
@@ -80,16 +80,16 @@ void robot_control(double distance,double direction,gapType gap)
     //3. A gap on the left -> LEFT
     if(gap == LEFT_MARGIN)
     {
-        robot_velocity.linear.x = 0;
-        robot_velocity.angular.z = angular_z_basic+1.5;  
+        robot_velocity.linear.x = linear_x_basic;
+        robot_velocity.angular.z = angular_z_basic+1.0;  
         std::cout << "[ROBOT] Action: Left Extreme" << std::endl;      
     }
 
     //4. A gap on the right -> RIGHT
     if(gap == RIGHT_MARGIN)
     {
-        robot_velocity.linear.x = 0;
-        robot_velocity.angular.z = -1*(angular_z_basic+1.5); 
+        robot_velocity.linear.x = linear_x_basic;
+        robot_velocity.angular.z = -1*(angular_z_basic+1.0); 
         std::cout << "[ROBOT] Action: Right Extreme" << std::endl;       
     }
 

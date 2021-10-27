@@ -25,8 +25,10 @@
 std::string ros_node_name = "pcl_controller";                   // Node Name
 std::string obstacle_topic = "/obstacle_detection/obstacle";    // PCL Obstacle Topic
 std::string navigate_topic = "/navigation_marker";              // Navigation Vector Topic
-ros::Publisher navigate_marker_pub;                             // PCL Obstacle Subsriber
-ros::Subscriber pcl_sub;                                        // Navigation Vector Publisher
+std::string control_topic = "/cmd_vel";                         // Robot Control Topic
+ros::Subscriber pcl_sub;                                        // PCL Obstacle Subsriber              
+ros::Publisher navigate_marker_pub;                             // Navigation Vector Publisher
+ros::Publisher robot_control_pub;                               // Robot Control Publisher
 
 // User parameters
 double _y = 0;                                                  // Previous y of a point
@@ -38,7 +40,11 @@ const double right_max = -0.8;                                  // Margin for ro
 const double left_max = 0.8;                                    // Margin for robot vision of left
 const double z_cutoff = 1;                                      // Z cutoff distance in meter
 const double gap_min = 0.8;                                     // Minimum gap for robot to pass through it
-enum gapType {PCL_ALGO, LEFT_MARGIN, RIGHT_MARGIN,EMPTY,BLOCK}  // Gap type
+enum gapType {PCL_ALGO, LEFT_MARGIN, RIGHT_MARGIN,EMPTY,BLOCK}; // Gap type
+
+// Control parameters
+double linear_x_basic = 0.3;                                    // Basic m/s along X
+double angular_z_basic = 0.1;                                   // Basuc rad/s along Z
 
 /*
  * Coordinate system in PCL
@@ -48,10 +54,64 @@ enum gapType {PCL_ALGO, LEFT_MARGIN, RIGHT_MARGIN,EMPTY,BLOCK}  // Gap type
  * 
 */
 
-void robot_control(distance,direction,gapType gap)
+void robot_control(double distance,double direction,gapType gap)
 {
     // ROBOT CONTROL
+    // Right -> -ve angular z | Left -> +ve angular z
     // TO - DO
+    geometry_msgs::Twist robot_velocity;
+
+    // 1. No solution can be found -> STOP
+    if(gap == BLOCK)
+    {
+        robot_velocity.linear.x = 0;
+        robot_velocity.angular.z = 0;
+        std::cout << "[ROBOT] Action: stop" << std::endl;
+    }
+
+    // 2. No obstacles -> FORWARD
+    if(gap == EMPTY)
+    {
+        robot_velocity.linear.x = linear_x_basic;
+        robot_velocity.angular.z = 0;
+        std::cout << "[ROBOT] Action: forward" << std::endl;
+    }
+
+    //3. A gap on the left -> LEFT
+    if(gap == LEFT_MARGIN)
+    {
+        robot_velocity.linear.x = 0;
+        robot_velocity.angular.z = angular_z_basic+1.5;  
+        std::cout << "[ROBOT] Action: Left Extreme" << std::endl;      
+    }
+
+    //4. A gap on the right -> RIGHT
+    if(gap == RIGHT_MARGIN)
+    {
+        robot_velocity.linear.x = 0;
+        robot_velocity.angular.z = -1*(angular_z_basic+1.5); 
+        std::cout << "[ROBOT] Action: Right Extreme" << std::endl;       
+    }
+
+    //5. Follow PCL 
+    if(gap == PCL_ALGO)
+    {
+        if(gap_mid>0)
+        {
+            // Left
+            robot_velocity.linear.x = linear_x_basic;
+            robot_velocity.angular.z = angular_z_basic+1.5;
+            std::cout << "[ROBOT] Action: Left-PCL" << std::endl;
+        }else{
+            // Right
+            robot_velocity.linear.x = linear_x_basic;
+            robot_velocity.angular.z = -1*(angular_z_basic+1.5);
+            std::cout << "[ROBOT] Action: Right-PCL" << std::endl;
+        }
+    }
+
+    // Publish message 
+    robot_control_pub.publish(robot_velocity);
 }
 
 void cloud_callback (const sensor_msgs::PointCloud2 &cloud_msg)
@@ -187,8 +247,8 @@ void cloud_callback (const sensor_msgs::PointCloud2 &cloud_msg)
         end_z = iter->second;
 
         // Show resutls
-        std::cout << "Left Margin Distance: " << left_margin_d << " | Right Margin Distance: " << right_margin_d << std::endl;
-        std::cout << "PCL Gap Distance: " << max_d << std::endl;
+        std::cout << "[VISION] Left Margin Distance: " << left_margin_d << " | Right Margin Distance: " << right_margin_d << std::endl;
+        std::cout << "[VISION] PCL Gap Distance: " << max_d << std::endl;
 
         // Determine max_d or marginal spaces should be used
         if(((right_margin_d)>left_margin_d)&&((right_margin_d)>max_d))
@@ -222,7 +282,7 @@ void cloud_callback (const sensor_msgs::PointCloud2 &cloud_msg)
             }
         }else
         {
-            // Check the gap is enought to pass through
+            // Check the gap is enough to pass through
             if(gap_mid>gap_min)
             {
                 // Show determined solution
@@ -231,7 +291,6 @@ void cloud_callback (const sensor_msgs::PointCloud2 &cloud_msg)
             }else{
                 std::cout << "[VISION] NO SOLUTIONS!" << std::endl;
                 robot_control(max_d,gap_mid,BLOCK);
-            }
             }
         }
         std::cout << std::endl;
@@ -309,6 +368,9 @@ int main (int argc, char** argv)
 
     // Create a ROS publisher to publish control intention
     navigate_marker_pub = nh.advertise<visualization_msgs::Marker>(navigate_topic,1);
+
+    // Create a ROS publisher to publish cmd_vel
+    robot_control_pub = nh.advertise<geometry_msgs::Twist>(control_topic,1000);
 
     // Spin
     ros::spin ();

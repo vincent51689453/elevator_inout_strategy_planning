@@ -39,12 +39,12 @@ double gap_depth = 0;                                           // Depth of the 
 const double right_max = -0.8;                                  // Margin for robot vision of right
 const double left_max = 0.8;                                    // Margin for robot vision of left
 const double z_cutoff = 1;                                      // Z cutoff distance in meter
-const double gap_min = 0.8;                                     // Minimum gap for robot to pass through it
+const double gap_min = 0.2;                                     // Minimum gap for robot to pass through it
 enum gapType {PCL_ALGO, LEFT_MARGIN, RIGHT_MARGIN,EMPTY,BLOCK}; // Gap type
 
 // Control parameters
-double linear_x_basic = 0.2;                                    // Basic m/s along X
-double angular_z_basic = 0.1;                                   // Basuc rad/s along Z
+double linear_x_basic = 0.3;                                    // Basic m/s along X
+double angular_z_basic = 0;                                   // Basuc rad/s along Z
 
 /*
  * Coordinate system in PCL
@@ -60,6 +60,7 @@ void robot_control(double distance,double direction,gapType gap)
     // Right -> -ve angular z | Left -> +ve angular z
     // TO - DO
     geometry_msgs::Twist robot_velocity;
+    direction = abs(direction);
 
     // 1. No solution can be found -> STOP
     if(gap == BLOCK)
@@ -72,7 +73,7 @@ void robot_control(double distance,double direction,gapType gap)
     // 2. No obstacles -> FORWARD
     if(gap == EMPTY)
     {
-        robot_velocity.linear.x = linear_x_basic;
+        robot_velocity.linear.x = linear_x_basic*1.3;
         robot_velocity.angular.z = 0;
         std::cout << "[ROBOT] Action: forward" << std::endl;
     }
@@ -81,7 +82,7 @@ void robot_control(double distance,double direction,gapType gap)
     if(gap == LEFT_MARGIN)
     {
         robot_velocity.linear.x = linear_x_basic;
-        robot_velocity.angular.z = angular_z_basic+1.0;  
+        robot_velocity.angular.z = angular_z_basic*direction+0.8;  
         std::cout << "[ROBOT] Action: Left Extreme" << std::endl;      
     }
 
@@ -89,7 +90,7 @@ void robot_control(double distance,double direction,gapType gap)
     if(gap == RIGHT_MARGIN)
     {
         robot_velocity.linear.x = linear_x_basic;
-        robot_velocity.angular.z = -1*(angular_z_basic+1.0); 
+        robot_velocity.angular.z = -1*(angular_z_basic*direction+0.8);
         std::cout << "[ROBOT] Action: Right Extreme" << std::endl;       
     }
 
@@ -100,12 +101,12 @@ void robot_control(double distance,double direction,gapType gap)
         {
             // Left
             robot_velocity.linear.x = linear_x_basic;
-            robot_velocity.angular.z = angular_z_basic*gap_mid;
+            robot_velocity.angular.z = angular_z_basic*(1+direction);
             std::cout << "[ROBOT] Action: Left-PCL" << std::endl;
         }else{
             // Right
             robot_velocity.linear.x = linear_x_basic;
-            robot_velocity.angular.z = angular_z_basic*gap_mid;
+            robot_velocity.angular.z = -1*angular_z_basic*(1+direction);
             std::cout << "[ROBOT] Action: Right-PCL" << std::endl;
         }
     }
@@ -246,9 +247,6 @@ void cloud_callback (const sensor_msgs::PointCloud2 &cloud_msg)
         end_y = iter->first;
         end_z = iter->second;
 
-        // Show resutls
-        std::cout << "[VISION] Left Margin Distance: " << left_margin_d << " | Right Margin Distance: " << right_margin_d << std::endl;
-        std::cout << "[VISION] PCL Gap Distance: " << max_d << std::endl;
 
         // Determine max_d or marginal spaces should be used
         if(((right_margin_d)>left_margin_d)&&((right_margin_d)>max_d))

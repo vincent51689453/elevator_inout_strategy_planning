@@ -36,11 +36,11 @@ int frame_id = 0;                                               // Frame index
 double max_d = 0;                                               // Maximum gap in the cloud
 double gap_mid = 0;                                             // Mid point of the max gap
 double gap_depth = 0;                                           // Depth of the max gap
-const double min_depth = 0.5;                                   // Minimum depth limit
+const double min_depth = 0.15;                                   // Minimum depth limit
 const double right_max = -0.8;                                  // Margin for robot vision of right
 const double left_max = 0.8;                                    // Margin for robot vision of left
 const double z_cutoff = 1;                                      // Z cutoff distance in meter
-const double gap_min = 0.2;                                     // Minimum gap for robot to pass through it
+const double gap_min = 0.03;                                     // Minimum gap for robot to pass through it
 enum gapType {PCL_ALGO, LEFT_MARGIN, RIGHT_MARGIN,EMPTY,BLOCK}; // Gap type
 
 // Control parameters
@@ -281,13 +281,14 @@ void cloud_callback (const sensor_msgs::PointCloud2 &cloud_msg)
             }
         }else
         {
-            // Check the gap is enough to pass through and there is enough gap_depth
-            if((gap_mid>gap_min)&&(gap_depth>=min_depth))
+            // When depth is below min_depth, the robot may have change to collide with some obstacles
+            if(abs(gap_depth)>=min_depth)
             {
                 // Show determined solution
                 std::cout << "[VISION] PCL space -> mid: " << gap_mid << " | depth: " << gap_depth << std::endl;
                 robot_control(max_d,gap_mid,PCL_ALGO);
             }else{
+                std::cout << "[VISION] Gap depth: " << abs(gap_depth) << " < Min depth: " << min_depth << std::endl;
                 std::cout << "[VISION] NO SOLUTIONS!" << std::endl;
                 robot_control(max_d,gap_mid,BLOCK);
             }
@@ -310,7 +311,6 @@ void cloud_callback (const sensor_msgs::PointCloud2 &cloud_msg)
 
     }else{
         std::cout << "[VISION] Out of range: FORWARD!" << std::endl;
-        std::cout << std::endl;
         robot_control(1000,0,EMPTY);
         // Publish navigation marker
         arrow_end.x = 1.0;

@@ -44,7 +44,7 @@ const double gap_min = 0.03;                                     // Minimum gap 
 enum gapType {PCL_ALGO, LEFT_MARGIN, RIGHT_MARGIN,EMPTY,BLOCK}; // Gap type
 
 // Control parameters
-double linear_x_basic = 0.3;                                    // Basic m/s along X
+double linear_x_basic = 0.5;                                    // Basic m/s along X
 double angular_z_basic = 0;                                     // Basuc rad/s along Z
 
 /*
@@ -70,33 +70,29 @@ void robot_control(double distance,double direction,gapType gap)
         robot_velocity.angular.z = 0;
         std::cout << "[ROBOT] Action: stop" << std::endl;
     }
-
     // 2. No obstacles -> FORWARD
-    if(gap == EMPTY)
+    else if(gap == EMPTY)
     {
-        robot_velocity.linear.x = linear_x_basic*1.3;
+        robot_velocity.linear.x = linear_x_basic;
         robot_velocity.angular.z = 0;
         std::cout << "[ROBOT] Action: forward" << std::endl;
     }
-
     //3. A gap on the left -> LEFT
-    if(gap == LEFT_MARGIN)
+    else if(gap == LEFT_MARGIN)
     {
-        robot_velocity.linear.x = linear_x_basic;
+        robot_velocity.linear.x = linear_x_basic*0.8;
         robot_velocity.angular.z = angular_z_basic*direction+0.8;  
         std::cout << "[ROBOT] Action: Left Extreme" << std::endl;      
     }
-
     //4. A gap on the right -> RIGHT
-    if(gap == RIGHT_MARGIN)
+    else if(gap == RIGHT_MARGIN)
     {
-        robot_velocity.linear.x = linear_x_basic;
+        robot_velocity.linear.x = linear_x_basic*0.8;
         robot_velocity.angular.z = -1*(angular_z_basic*direction+0.8);
         std::cout << "[ROBOT] Action: Right Extreme" << std::endl;       
     }
-
     //5. Follow PCL 
-    if(gap == PCL_ALGO)
+    else
     {
         if(gap_mid>0)
         {
@@ -248,7 +244,7 @@ void cloud_callback (const sensor_msgs::PointCloud2 &cloud_msg)
         end_y = iter->first;
         end_z = iter->second;
 
-
+        // TO-DO: Most of the time are RIGHT/LEFT Extreme
         // Determine max_d or marginal spaces should be used
         if(((right_margin_d)>left_margin_d)&&((right_margin_d)>max_d))
         {

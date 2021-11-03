@@ -36,7 +36,7 @@ int frame_id = 0;                                               // Frame index
 double max_d = 0;                                               // Maximum gap in the cloud
 double gap_mid = 0;                                             // Mid point of the max gap
 double gap_depth = 0;                                           // Depth of the max gap
-const double min_depth = 0.23;                                  // Minimum depth limit
+const double min_depth = 0.3;                                  // Minimum depth limit
 const double right_max = -0.6;                                  // Margin for robot vision of right
 const double left_max = 0.6;                                    // Margin for robot vision of left
 const double z_cutoff = 1;                                      // Z cutoff distance in meter
@@ -46,6 +46,10 @@ enum gapType {PCL_ALGO, LEFT_MARGIN, RIGHT_MARGIN,EMPTY,BLOCK}; // Gap type
 // Control parameters
 double linear_x_basic = 0.5;                                    // Basic m/s along X
 double angular_z_basic = 0;                                     // Basuc rad/s along Z
+double num_stop = 0;                                            // Number of stop decision
+const double max_num_stop = 10;                                 // Maximum number of stop decision
+double init_theta = 0;                                          // Initial theta pose of the robot
+double final_theta = 0;                                         // Final theta pose of the robot
 
 // Robot operation schedule
 enum taskType {ENTER_ELEVATOR,ROTATE_ITSELF,EXIT_ELEVATOR};     // Operation sequences for the robot
@@ -63,7 +67,6 @@ void robot_control(double distance,double direction,gapType gap)
 {
     // ROBOT CONTROL
     // Right -> -ve angular z | Left -> +ve angular z
-    // TO - DO
     geometry_msgs::Twist robot_velocity;
     direction = abs(direction);
 
@@ -73,6 +76,13 @@ void robot_control(double distance,double direction,gapType gap)
         robot_velocity.linear.x = 0;
         robot_velocity.angular.z = 0;
         std::cout << "[ROBOT] Action: stop" << std::endl;
+        num_stop ++;
+        // Update scheduled task if the robot cannot find solutions for a long period of time
+        if(num_stop>max_num_stop)
+        {
+            num_stop = 0;
+            robot_task = ROTATE_ITSELF;
+        }
     }
     // 2. No obstacles -> FORWARD
     else if(gap == EMPTY)
@@ -179,6 +189,7 @@ void cloud_callback (const sensor_msgs::PointCloud2 &cloud_msg)
     sensor_msgs::convertPointCloud2ToPointCloud(cloud_msg,obstacle_cloud);
 
     // Robot Task Statement
+    std::cout << "[SYSTEM] Frame: " << frame_id << std::endl;
     if(robot_task == ENTER_ELEVATOR)
     {
         std::cout << "[Schedule] Current Task: ENTER ELEVATOR" << std::endl;
@@ -262,11 +273,11 @@ void cloud_callback (const sensor_msgs::PointCloud2 &cloud_msg)
             end_y = iter->first;
             end_z = iter->second;
 
+            max_d = max_d*100;
+
             // Display all calculated results
-            std::cout << "[CALCULATION] Frame: " << frame_id << std::endl;
             std::cout << "[CALCULATION] Largest Gap: " << max_d << " | Right Margin: " << right_margin_d << " | Left Margin: " << left_margin_d << std::endl;
 
-            // TO-DO: Most of the time are RIGHT/LEFT Extreme
             // Determine max_d or marginal spaces should be used
             gap_depth = abs(gap_depth);
             if((right_margin_d>left_margin_d)&&(right_margin_d>max_d))
@@ -348,6 +359,13 @@ void cloud_callback (const sensor_msgs::PointCloud2 &cloud_msg)
         }
 
     }
+
+    // Robot self rotation
+    if(robot_task == ROTATE_ITSELF)
+    {
+        //TO-DO: Robot self rotation
+    }
+
     // Publish right margin marker 
     right_limit_marker.points.push_back(arrow_start);
     right_limit_marker.points.push_back(right_limit_pt);

@@ -1,5 +1,5 @@
 # pcl_obstacle_avoidance
-It is a obstacle avoidance package based on PCL and realsense. This package is developing with UbiquityRobot Magni.
+It is a obstacle avoidance package used in entering/leaving the elevator based on PCL and realsense. This package is developing with UbiquityRobot Magni.
 
 ## Prerequisites
 - ROS Melodic
@@ -45,4 +45,6 @@ rosrun vision_control vision_control_node
 ```
 ## Sample Output
 ![image](https://github.com/vincent51689453/pcl_obstacle_avoidance/blob/main/git_image/demo1.png)
+
+
 

@@ -16,44 +16,55 @@
 #include <sensor_msgs/point_cloud_conversion.h>
 #include <visualization_msgs/Marker.h>
 #include <geometry_msgs/Point.h>
+#include <nav_msgs/Odometry.h>
 
 // PCL specific includes
 #include <pcl_conversions/pcl_conversions.h> 
 #include "pcl_ros/transforms.h"
 
-// Node info
-std::string ros_node_name = "pcl_controller";                   // Node Name
-std::string obstacle_topic = "/obstacle_detection/obstacle";    // PCL Obstacle Topic
-std::string navigate_topic = "/navigation_marker";              // Navigation Vector Topic
-std::string control_topic = "/cmd_vel";                         // Robot Control Topic
-ros::Subscriber pcl_sub;                                        // PCL Obstacle Subsriber              
-ros::Publisher navigate_marker_pub;                             // Navigation Vector Publisher
-ros::Publisher robot_control_pub;                               // Robot Control Publisher
+// User define
+# define M_PI           3.14159265358979323846  
 
-// User parameters
-double _y = 0;                                                  // Previous y of a point
-int frame_id = 0;                                               // Frame index
-double max_d = 0;                                               // Maximum gap in the cloud
-double gap_mid = 0;                                             // Mid point of the max gap
-double gap_depth = 0;                                           // Depth of the max gap
-const double min_depth = 0.3;                                  // Minimum depth limit
-const double right_max = -0.6;                                  // Margin for robot vision of right
-const double left_max = 0.6;                                    // Margin for robot vision of left
-const double z_cutoff = 1;                                      // Z cutoff distance in meter
-const double gap_min = 0.03;                                    // Minimum gap for robot to pass through it
-enum gapType {PCL_ALGO, LEFT_MARGIN, RIGHT_MARGIN,EMPTY,BLOCK}; // Gap type
+// Node info
+std::string ros_node_name = "pcl_controller";                               // Node Name
+std::string obstacle_topic = "/obstacle_detection/obstacle";                // PCL Obstacle Topic
+std::string navigate_topic = "/navigation_marker";                          // Navigation Vector Topic
+std::string control_topic = "/cmd_vel";                                     // Robot Control Topic
+std::string odom_topic = "/odom";                                           // Odometry data Topic
+ros::Subscriber pcl_sub;                                                    // PCL Obstacle Subsriber              
+ros::Subscriber odom_sub;                                                   // Odometry subscriber
+ros::Publisher navigate_marker_pub;                                         // Navigation Vector Publisher
+ros::Publisher robot_control_pub;                                           // Robot Control Publisher
+
+// Detection parameters
+double _y = 0;                                                              // Previous y of a point
+int frame_id = 0;                                                           // Frame index
+double max_d = 0;                                                           // Maximum gap in the cloud
+double gap_mid = 0;                                                         // Mid point of the max gap
+double gap_depth = 0;                                                       // Depth of the max gap
+const double min_depth = 0.30;                                              // Minimum depth limit
+const double right_max = -0.6;                                              // Margin for robot vision of right
+const double left_max = 0.6;                                                // Margin for robot vision of left
+const double z_cutoff = 1;                                                  // Z cutoff distance in meter
+const double gap_min = 0.03;                                                // Minimum gap for robot to pass through it
+enum gapType {PCL_ALGO, LEFT_MARGIN, RIGHT_MARGIN,EMPTY,BLOCK, BACK, TURN}; // Gap type
+                    
 
 // Control parameters
-double linear_x_basic = 0.5;                                    // Basic m/s along X
-double angular_z_basic = 0;                                     // Basuc rad/s along Z
-double num_stop = 0;                                            // Number of stop decision
-const double max_num_stop = 10;                                 // Maximum number of stop decision
-double init_theta = 0;                                          // Initial theta pose of the robot
-double final_theta = 0;                                         // Final theta pose of the robot
+double linear_x_basic = 0.5;                                                // Basic m/s along X
+double angular_z_basic = 0;                                                 // Basuc rad/s along Z
+double num_stop = 0;                                                        // Number of stop decision
+const double max_num_stop = 10;                                             // Maximum number of stop decision
+double qx = 0,qy = 0,qz = 0,qw = 0;                                         // Odometry data
+double fqx = 0, fqy = 0, fqz = 0, fqw = 0;                                  // Target Odometry data
+double backward_delay = 0;                                                  // Backward delay before turning
+const double max_backward_delay = 3;                                        // Allowed backward delay
+const double max_odom_error = 0.3;                                          // Allowed odom error for rotation
+double num_turns = 5;                                                       // Dummy
 
 // Robot operation schedule
-enum taskType {ENTER_ELEVATOR,ROTATE_ITSELF,EXIT_ELEVATOR};     // Operation sequences for the robot
-taskType robot_task = ENTER_ELEVATOR;                           // Initialize robot operation task
+enum taskType {ENTER_ELEVATOR,ROTATE_ITSELF,EXIT_ELEVATOR};                 // Operation sequences for the robot
+taskType robot_task = ENTER_ELEVATOR;                                       // Initialize robot operation task
 
 /*
  * Coordinate system in PCL
@@ -62,6 +73,45 @@ taskType robot_task = ENTER_ELEVATOR;                           // Initialize ro
  * Blue  : Z (PCL Up/Down)
  * 
 */
+double odom_estimation(void)
+{
+    double current_pose = 0.0;
+    double target_pose = 0.0;
+    double error = 0.0;
+
+    current_pose = qx+qy+qz+qw;
+    target_pose = fqx+fqy+fqz+fqw;
+
+    error = abs(target_pose-current_pose);
+    return error;
+}
+
+void euler_to_quaternion(float Yaw, float Pitch, float Roll)
+{
+  float yaw   = Yaw   * M_PI / 180 ;
+  float pitch = Roll  * M_PI / 180 ;
+  float roll  = Pitch * M_PI / 180 ;
+
+  float qx = sin(roll/2) * cos(pitch/2) * cos(yaw/2) - cos(roll/2) * sin(pitch/2) * sin(yaw/2);
+  float qy = cos(roll/2) * sin(pitch/2) * cos(yaw/2) + sin(roll/2) * cos(pitch/2) * sin(yaw/2);
+  float qz = cos(roll/2) * cos(pitch/2) * sin(yaw/2) - sin(roll/2) * sin(pitch/2) * cos(yaw/2);
+  float qw = cos(roll/2) * cos(pitch/2) * cos(yaw/2) + sin(roll/2) * sin(pitch/2) * sin(yaw/2);
+ 
+  fqx = qx;
+  fqy = qy;
+  fqz = qz;
+  fqw = qw;
+}
+
+void odomCallback(const nav_msgs::Odometry::ConstPtr& msg)
+{
+    // Quaternion number
+    qx = msg->pose.pose.orientation.x;
+    qy = msg->pose.pose.orientation.y;
+    qz = msg->pose.pose.orientation.z;
+    qw = msg->pose.pose.orientation.w;
+
+}
 
 void robot_control(double distance,double direction,gapType gap)
 {
@@ -105,7 +155,21 @@ void robot_control(double distance,double direction,gapType gap)
         robot_velocity.angular.z = -1*(angular_z_basic*direction+0.8);
         std::cout << "[ROBOT] Action: Right Extreme" << std::endl;       
     }
-    //5. Follow PCL 
+    //5. Special for ROTATE_ITSELF -> BACKWARD
+    else if(gap == BACK)
+    {
+        robot_velocity.linear.x = -1*linear_x_basic*0.8;
+        robot_velocity.angular.z = 0;
+        std::cout << "[ROBOT] Action: backward" << std::endl;       
+    }
+    //6. Special for ROTATE_ITSELF -> ROTATION
+    else if(gap == TURN)
+    {
+        robot_velocity.linear.x = 0;
+        robot_velocity.angular.z = 1.5;
+        std::cout << "[ROBOT] Action: rotate" << std::endl;       
+    }
+    //7. Follow PCL 
     else
     {
         if(gap_mid>0)
@@ -273,7 +337,7 @@ void cloud_callback (const sensor_msgs::PointCloud2 &cloud_msg)
             end_y = iter->first;
             end_z = iter->second;
 
-            max_d = max_d*100;
+            max_d = max_d*1000;
 
             // Display all calculated results
             std::cout << "[CALCULATION] Largest Gap: " << max_d << " | Right Margin: " << right_margin_d << " | Left Margin: " << left_margin_d << std::endl;
@@ -364,6 +428,26 @@ void cloud_callback (const sensor_msgs::PointCloud2 &cloud_msg)
     if(robot_task == ROTATE_ITSELF)
     {
         //TO-DO: Robot self rotation
+        backward_delay++;
+        if(backward_delay<max_backward_delay)
+        {
+            robot_control(0,0,BACK);
+        }else{
+            //backward_delay = 0;
+            double odom_error = 0.0;
+            odom_error = odom_estimation();
+            if((odom_error>=max_odom_error)||(num_turns<=5))
+            {
+                std::cout << "[ROBOT] Current Odom: qx=" << qx << " |qy=" << qy << " |qz=" << qz << " |qw=" << qw << std::endl;
+                std::cout << "[ROBOT] Target Odom: qx=" << fqx << " |qy=" << fqy << " |qz=" << fqz << " |qw=" << fqw << std::endl;
+                std::cout << "[ROBOT] Odom error = " << odom_error << std::endl;
+                euler_to_quaternion(M_PI,0,0);
+                robot_control(0,0,TURN);
+                num_turns++;
+            }else{
+                robot_task = EXIT_ELEVATOR;
+            }
+        }
     }
 
     // Publish right margin marker 
@@ -389,9 +473,11 @@ void cloud_callback (const sensor_msgs::PointCloud2 &cloud_msg)
     left_limit_marker.color.b = 1.0;
     left_limit_marker.color.a = 1.0;
     navigate_marker_pub.publish(left_limit_marker);  
-     
+
     frame_id++;
 }
+
+
 
 int main (int argc, char** argv)
 {
@@ -402,6 +488,9 @@ int main (int argc, char** argv)
 
     // Create a ROS subscriber to get obstacles
     pcl_sub = nh.subscribe (obstacle_topic, 1, cloud_callback);
+
+    // Create a ROS subscriber to get odometry data
+    odom_sub = nh.subscribe(odom_topic, 1000, odomCallback);
 
     // Create a ROS publisher to publish control intention
     navigate_marker_pub = nh.advertise<visualization_msgs::Marker>(navigate_topic,1);

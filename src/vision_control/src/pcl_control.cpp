@@ -424,7 +424,7 @@ void cloud_callback (const sensor_msgs::PointCloud2 &cloud_msg)
                 euler_lock = !euler_lock;
             }     
             total_rz += abs(rz-_rz);
-            if(total_rz<=27)
+            if(total_rz<=35)
             {
                 std::cout << "[ODOM] Initial euler: rx= " << _rx << "| ry= " << _ry<< "| rz= " << _rz-M_PI << std::endl;
                 std::cout << "[ODOM] Target euler: rx= " << _rx << "| ry= " << _ry<< "| rz= " << _rz << std::endl;

@@ -43,8 +43,8 @@ double max_d = 0;                                                           // M
 double gap_mid = 0;                                                         // Mid point of the max gap
 double gap_depth = 0;                                                       // Depth of the max gap
 const double min_depth = 0.30;                                              // Minimum depth limit
-const double right_max = -0.6;                                              // Margin for robot vision of right
-const double left_max = 0.6;                                                // Margin for robot vision of left
+const double right_max = -0.8;                                              // Margin for robot vision of right
+const double left_max = 0.8;                                                // Margin for robot vision of left
 const double z_cutoff = 1;                                                  // Z cutoff distance in meter
 const double gap_min = 0.03;                                                // Minimum gap for robot to pass through it
 enum gapType {PCL_ALGO, LEFT_MARGIN, RIGHT_MARGIN,EMPTY,BLOCK, BACK, TURN}; // Gap type
@@ -54,14 +54,15 @@ enum gapType {PCL_ALGO, LEFT_MARGIN, RIGHT_MARGIN,EMPTY,BLOCK, BACK, TURN}; // G
 double linear_x_basic = 0.5;                                                // Basic m/s along X
 double angular_z_basic = 0;                                                 // Basuc rad/s along Z
 double num_stop = 0;                                                        // Number of stop decision
-const double max_num_stop = 10;                                             // Maximum number of stop decision
-double qx = 0,qy = 0,qz = 0,qw = 0;                                         // Odometry data
-double fqx = 0, fqy = 0, fqz = 0, fqw = 0;                                  // Target Odometry data
+const double max_num_stop = 20;                                             // Maximum number of stop decision
+double rx = 0, ry = 0, rz = 0;                                              // Current euler angle
+double _rx = 0, _ry = 0, _rz = 0;                                           // Initial and target euler angle
+double qx = 0, qy = 0, qz = 0, qw = 0;                                      // Current quaternion
 double backward_delay = 0;                                                  // Backward delay before turning
-const double max_backward_delay = 3;                                        // Allowed backward delay
+const double max_backward_delay = 5;                                        // Allowed backward delay
 const double max_odom_error = 0.3;                                          // Allowed odom error for rotation
-double num_turns = 5;                                                       // Dummy
-
+bool euler_lock = false;                                                    // Oodom logging
+double total_rz = 0;
 // Robot operation schedule
 enum taskType {ENTER_ELEVATOR,ROTATE_ITSELF,EXIT_ELEVATOR};                 // Operation sequences for the robot
 taskType robot_task = ENTER_ELEVATOR;                                       // Initialize robot operation task
@@ -73,34 +74,12 @@ taskType robot_task = ENTER_ELEVATOR;                                       // I
  * Blue  : Z (PCL Up/Down)
  * 
 */
-double odom_estimation(void)
+
+void quaternion_to_euler()
 {
-    double current_pose = 0.0;
-    double target_pose = 0.0;
-    double error = 0.0;
-
-    current_pose = qx+qy+qz+qw;
-    target_pose = fqx+fqy+fqz+fqw;
-
-    error = abs(target_pose-current_pose);
-    return error;
-}
-
-void euler_to_quaternion(float Yaw, float Pitch, float Roll)
-{
-  float yaw   = Yaw   * M_PI / 180 ;
-  float pitch = Roll  * M_PI / 180 ;
-  float roll  = Pitch * M_PI / 180 ;
-
-  float qx = sin(roll/2) * cos(pitch/2) * cos(yaw/2) - cos(roll/2) * sin(pitch/2) * sin(yaw/2);
-  float qy = cos(roll/2) * sin(pitch/2) * cos(yaw/2) + sin(roll/2) * cos(pitch/2) * sin(yaw/2);
-  float qz = cos(roll/2) * cos(pitch/2) * sin(yaw/2) - sin(roll/2) * sin(pitch/2) * cos(yaw/2);
-  float qw = cos(roll/2) * cos(pitch/2) * cos(yaw/2) + sin(roll/2) * sin(pitch/2) * sin(yaw/2);
- 
-  fqx = qx;
-  fqy = qy;
-  fqz = qz;
-  fqw = qw;
+    rx = atan2(2*(qw*qx+qy*qz),1-2*(qx*qx+qy*qy));
+    ry = asin(2*(qw*qy-qz*qx));
+    rz = atan2(2*(qw*qz+qx*qy),1-2*(qy*qy+qz*qz));
 }
 
 void odomCallback(const nav_msgs::Odometry::ConstPtr& msg)
@@ -127,10 +106,12 @@ void robot_control(double distance,double direction,gapType gap)
         robot_velocity.angular.z = 0;
         std::cout << "[ROBOT] Action: stop" << std::endl;
         num_stop ++;
+        std::cout << "[ROBOT] num_stop: " << num_stop << std::endl;
         // Update scheduled task if the robot cannot find solutions for a long period of time
-        if(num_stop>max_num_stop)
+        if(num_stop>=max_num_stop)
         {
             num_stop = 0;
+
             robot_task = ROTATE_ITSELF;
         }
     }
@@ -176,12 +157,12 @@ void robot_control(double distance,double direction,gapType gap)
         {
             // Left
             robot_velocity.linear.x = linear_x_basic;
-            robot_velocity.angular.z = angular_z_basic*(1+direction);
+            robot_velocity.angular.z = angular_z_basic*(1.1+direction);
             std::cout << "[ROBOT] Action: Left-PCL" << std::endl;
         }else{
             // Right
             robot_velocity.linear.x = linear_x_basic;
-            robot_velocity.angular.z = -1*angular_z_basic*(1+direction);
+            robot_velocity.angular.z = -1*angular_z_basic*(1.1+direction);
             std::cout << "[ROBOT] Action: Right-PCL" << std::endl;
         }
     }
@@ -337,7 +318,7 @@ void cloud_callback (const sensor_msgs::PointCloud2 &cloud_msg)
             end_y = iter->first;
             end_z = iter->second;
 
-            max_d = max_d*1000;
+            max_d = max_d*10;
 
             // Display all calculated results
             std::cout << "[CALCULATION] Largest Gap: " << max_d << " | Right Margin: " << right_margin_d << " | Left Margin: " << left_margin_d << std::endl;
@@ -433,17 +414,24 @@ void cloud_callback (const sensor_msgs::PointCloud2 &cloud_msg)
         {
             robot_control(0,0,BACK);
         }else{
-            //backward_delay = 0;
-            double odom_error = 0.0;
-            odom_error = odom_estimation();
-            if((odom_error>=max_odom_error)||(num_turns<=5))
+            // Rotate robot based on odometry
+            quaternion_to_euler();
+            if (!euler_lock)
             {
-                std::cout << "[ROBOT] Current Odom: qx=" << qx << " |qy=" << qy << " |qz=" << qz << " |qw=" << qw << std::endl;
-                std::cout << "[ROBOT] Target Odom: qx=" << fqx << " |qy=" << fqy << " |qz=" << fqz << " |qw=" << fqw << std::endl;
-                std::cout << "[ROBOT] Odom error = " << odom_error << std::endl;
-                euler_to_quaternion(M_PI,0,0);
+                _rx = rx;
+                _ry = ry;
+                _rz = rz + M_PI;
+                euler_lock = !euler_lock;
+            }     
+            total_rz += abs(rz-_rz);
+            if(total_rz<=27)
+            {
+                std::cout << "[ODOM] Initial euler: rx= " << _rx << "| ry= " << _ry<< "| rz= " << _rz-M_PI << std::endl;
+                std::cout << "[ODOM] Target euler: rx= " << _rx << "| ry= " << _ry<< "| rz= " << _rz << std::endl;
+                std::cout << "[ODOM] Current euler: rx= " << rx << "| ry= " << ry<< "| rz= " << rz << std::endl;
+                std::cout << "[ODOM] total drz: " << total_rz << std::endl;   
+                std::cout << std::endl;   
                 robot_control(0,0,TURN);
-                num_turns++;
             }else{
                 robot_task = EXIT_ELEVATOR;
             }

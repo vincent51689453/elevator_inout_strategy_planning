@@ -75,6 +75,8 @@ taskType robot_task = ENTER_ELEVATOR;                                       // I
  * 
 */
 
+// TO-DO: Need to add backoff options in EXIT_ELEVATOR, otherwise it will freeze when no solutions
+
 void quaternion_to_euler()
 {
     rx = atan2(2*(qw*qx+qy*qz),1-2*(qx*qx+qy*qy));

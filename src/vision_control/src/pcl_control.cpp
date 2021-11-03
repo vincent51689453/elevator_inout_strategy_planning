@@ -36,16 +36,20 @@ int frame_id = 0;                                               // Frame index
 double max_d = 0;                                               // Maximum gap in the cloud
 double gap_mid = 0;                                             // Mid point of the max gap
 double gap_depth = 0;                                           // Depth of the max gap
-const double min_depth = 0.15;                                   // Minimum depth limit
-const double right_max = -0.8;                                  // Margin for robot vision of right
-const double left_max = 0.8;                                    // Margin for robot vision of left
+const double min_depth = 0.23;                                  // Minimum depth limit
+const double right_max = -0.6;                                  // Margin for robot vision of right
+const double left_max = 0.6;                                    // Margin for robot vision of left
 const double z_cutoff = 1;                                      // Z cutoff distance in meter
-const double gap_min = 0.03;                                     // Minimum gap for robot to pass through it
+const double gap_min = 0.03;                                    // Minimum gap for robot to pass through it
 enum gapType {PCL_ALGO, LEFT_MARGIN, RIGHT_MARGIN,EMPTY,BLOCK}; // Gap type
 
 // Control parameters
 double linear_x_basic = 0.5;                                    // Basic m/s along X
 double angular_z_basic = 0;                                     // Basuc rad/s along Z
+
+// Robot operation schedule
+enum taskType {ENTER_ELEVATOR,ROTATE_ITSELF,EXIT_ELEVATOR};     // Operation sequences for the robot
+taskType robot_task = ENTER_ELEVATOR;                           // Initialize robot operation task
 
 /*
  * Coordinate system in PCL
@@ -174,156 +178,176 @@ void cloud_callback (const sensor_msgs::PointCloud2 &cloud_msg)
     sensor_msgs::PointCloud obstacle_cloud;
     sensor_msgs::convertPointCloud2ToPointCloud(cloud_msg,obstacle_cloud);
 
-    // Store all points data(y,x) into a vector for path planning, eliminate y axis
-    bool valid_linear_scan = false;
-    for(int i=0;i<obstacle_cloud.points.size();i++)
+    // Robot Task Statement
+    if(robot_task == ENTER_ELEVATOR)
     {
-
-        //Show XYZ data
-        //std:: cout << "[DEBUG Point #" << i << std::endl;
-        //std:: cout << "x:" << obstacle_cloud.points[i].x << " y:" << obstacle_cloud.points[i].y << " z:" << obstacle_cloud.points[i].z << std::endl; 
-        double y = obstacle_cloud.points[i].y;
-        double x = obstacle_cloud.points[i].x;
-        double z = obstacle_cloud.points[i].z;
-
-        // Convert pointcloud2 XYZ to pointcloud XYZ
-        double pointcloudX = z;
-        double pointcloudY = -1*x;
-        double pointcloudZ = -1*y;
-
-        if(pointcloudX < z_cutoff)
-        {
-            // Only consider Y axis [left & right] and X axis [depth]
-            linear_scan.insert(std::make_pair(pointcloudY,pointcloudZ));
-            valid_linear_scan = true;
-        }
-    }
-
-    // If no valid linear_scan, just go forward
-    if(valid_linear_scan)
+        std::cout << "[Schedule] Current Task: ENTER ELEVATOR" << std::endl;
+    }else if(robot_task == ROTATE_ITSELF)
     {
-        max_d = 0;
-        // Searching for 'GAP' between obstacles
-        for(iter=linear_scan.begin();iter!=linear_scan.end();iter++)
-        {
-            double d = 0.0;
-            // Find distance between previous point and current point along Y
-            (iter->first>_y)?d = iter->first-_y:d=0;
-
-
-            // Find maximum d
-            if(d>max_d)
-            {
-                max_d = d;
-                gap_mid = (iter->first+_y)*0.5; 
-                gap_depth = (iter->second);     
-            }
-
-            
-            // Update previous value
-            _y = iter->first;
-
-        }
-
-        // Calculating marginal spaces
-        double left_margin_d = 0.0;
-        double right_margin_d = 0.0;
-        double start_y = 0.0;
-        double start_z = 0.0;
-        double end_y = 0.0;
-        double end_z = 0.0;
-
-        iter = linear_scan.begin();
-        left_margin_d = abs(iter->first - left_max);
-        start_y = iter->first;
-        start_z = iter->second;
-
-        iter = linear_scan.end();
-        iter --;
-        right_margin_d = abs(right_max - iter->first);
-        end_y = iter->first;
-        end_z = iter->second;
-
-        // TO-DO: Most of the time are RIGHT/LEFT Extreme
-        // Determine max_d or marginal spaces should be used
-        if(((right_margin_d)>left_margin_d)&&((right_margin_d)>max_d))
-        {
-            gap_mid = (right_max+end_y)*0.5;
-            gap_depth = end_z;
-            // Check the gap is enought to pass through
-            if(right_margin_d>gap_min)
-            {
-                // Show determined solution
-                std::cout << "[VISION] Right margin space -> mid: " << gap_mid << " | depth: " << gap_depth << std::endl;
-                robot_control(right_margin_d,gap_mid,RIGHT_MARGIN);
-            }else{
-                std::cout << "[VISION] NO SOLUTIONS!" << std::endl;
-                robot_control(right_margin_d,gap_mid,BLOCK);
-            }
-        }
-        else if(((left_margin_d)>right_margin_d)&&((left_margin_d)>max_d))
-        {
-            gap_mid = (left_max+start_y)*0.5;
-            gap_depth = start_z;
-            // Check the gap is enought to pass through
-            if(left_margin_d>gap_min)         
-            {
-                // Show determined solution
-                std::cout << "[VISION] Left margin space -> mid: " << gap_mid << " | depth: " << gap_depth << std::endl;
-                robot_control(left_margin_d,gap_mid,LEFT_MARGIN);            // Show determined solution
-            }else{
-                std::cout << "[VISION] NO SOLUTIONS!" << std::endl;
-                robot_control(left_margin_d,gap_mid,BLOCK);
-            }
-        }else
-        {
-            // When depth is below min_depth, the robot may have change to collide with some obstacles
-            if(abs(gap_depth)>=min_depth)
-            {
-                // Show determined solution
-                std::cout << "[VISION] PCL space -> mid: " << gap_mid << " | depth: " << gap_depth << std::endl;
-                robot_control(max_d,gap_mid,PCL_ALGO);
-            }else{
-                std::cout << "[VISION] Gap depth: " << abs(gap_depth) << " < Min depth: " << min_depth << std::endl;
-                std::cout << "[VISION] NO SOLUTIONS!" << std::endl;
-                robot_control(max_d,gap_mid,BLOCK);
-            }
-        }
-        std::cout << std::endl;
-        // Publish navigation marker
-        arrow_end.x = 1.0;
-        arrow_end.y = gap_mid;
-        arrow_end.z = 0;  
-        navigation_marker.points.push_back(arrow_start);
-        navigation_marker.points.push_back(arrow_end);
-        navigation_marker.scale.x = 0.03;
-        navigation_marker.scale.y = 0.05;
-        navigation_marker.scale.z = 0.1;
-        navigation_marker.color.r = 0.2;
-        navigation_marker.color.g = 1.0;
-        navigation_marker.color.b = 1.0;
-        navigation_marker.color.a = 1.0;
-        navigate_marker_pub.publish(navigation_marker);
-
+        std::cout << "[Schedule] Current Task: ROTATE ITSELF" << std::endl;
     }else{
-        std::cout << "[VISION] Out of range: FORWARD!" << std::endl;
-        robot_control(1000,0,EMPTY);
-        // Publish navigation marker
-        arrow_end.x = 1.0;
-        arrow_end.y = 0;
-        arrow_end.z = 0;  
-        navigation_marker.points.push_back(arrow_start);
-        navigation_marker.points.push_back(arrow_end);
-        navigation_marker.scale.x = 0.03;
-        navigation_marker.scale.y = 0.05;
-        navigation_marker.scale.z = 0.1;
-        navigation_marker.color.r = 0.2;
-        navigation_marker.color.g = 1.0;
-        navigation_marker.color.b = 1.0;
-        navigation_marker.color.a = 1.0;
-        navigate_marker_pub.publish(navigation_marker);
+        std::cout << "[Schedule] Current Task: EXIT ELEVATOR" << std::endl;
     }
 
+    // Only being used when the robot enters the elevator / leave the elevator
+    if((robot_task == ENTER_ELEVATOR)||(robot_task == EXIT_ELEVATOR))
+    {
+        // Store all points data(y,x) into a vector for path planning, eliminate y axis
+        bool valid_linear_scan = false;
+        for(int i=0;i<obstacle_cloud.points.size();i++)
+        {
+
+            //Show XYZ data
+            //std:: cout << "[DEBUG Point #" << i << std::endl;
+            //std:: cout << "x:" << obstacle_cloud.points[i].x << " y:" << obstacle_cloud.points[i].y << " z:" << obstacle_cloud.points[i].z << std::endl; 
+            double y = obstacle_cloud.points[i].y;
+            double x = obstacle_cloud.points[i].x;
+            double z = obstacle_cloud.points[i].z;
+
+            // Convert pointcloud2 XYZ to pointcloud XYZ
+            double pointcloudX = z;
+            double pointcloudY = -1*x;
+            double pointcloudZ = -1*y;
+
+            if(pointcloudX < z_cutoff)
+            {
+                // Only consider Y axis [left & right] and X axis [depth]
+                linear_scan.insert(std::make_pair(pointcloudY,pointcloudZ));
+                valid_linear_scan = true;
+            }
+        }
+
+        // If no valid linear_scan, just go forward
+        if(valid_linear_scan)
+        {
+            max_d = 0;
+            // Searching for 'GAP' between obstacles
+            for(iter=linear_scan.begin();iter!=linear_scan.end();iter++)
+            {
+                double d = 0.0;
+                // Find distance between previous point and current point along Y
+                (iter->first>_y)?d = iter->first-_y:d=0;
+
+
+                // Find maximum d
+                if(d>max_d)
+                {
+                    max_d = d;
+                    gap_mid = (iter->first+_y)*0.5; 
+                    gap_depth = (iter->second);     
+                }
+
+                
+                // Update previous value
+                _y = iter->first;
+
+            }
+
+            // Calculating marginal spaces
+            double left_margin_d = 0.0;
+            double right_margin_d = 0.0;
+            double start_y = 0.0;
+            double start_z = 0.0;
+            double end_y = 0.0;
+            double end_z = 0.0;
+
+            iter = linear_scan.begin();
+            left_margin_d = abs(iter->first - left_max);
+            start_y = iter->first;
+            start_z = iter->second;
+
+            iter = linear_scan.end();
+            iter --;
+            right_margin_d = abs(right_max - iter->first);
+            end_y = iter->first;
+            end_z = iter->second;
+
+            // Display all calculated results
+            std::cout << "[CALCULATION] Frame: " << frame_id << std::endl;
+            std::cout << "[CALCULATION] Largest Gap: " << max_d << " | Right Margin: " << right_margin_d << " | Left Margin: " << left_margin_d << std::endl;
+
+            // TO-DO: Most of the time are RIGHT/LEFT Extreme
+            // Determine max_d or marginal spaces should be used
+            gap_depth = abs(gap_depth);
+            if((right_margin_d>left_margin_d)&&(right_margin_d>max_d))
+            {
+                gap_mid = (right_max+end_y)*0.5;
+                //gap_depth = abs(end_z);
+                // Check the gap is enought to pass through
+                std::cout << "[VISION] Right margin space -> mid: " << gap_mid << " | depth: " << gap_depth << std::endl;
+                if((right_margin_d>gap_min)&&(gap_depth>=min_depth))
+                {
+                    // Show determined solution
+                    robot_control(right_margin_d,gap_mid,RIGHT_MARGIN);
+                }else{
+                    std::cout << "[VISION] NO SOLUTIONS!" << std::endl;
+                    robot_control(right_margin_d,gap_mid,BLOCK);
+                }
+            }
+            else if((left_margin_d>right_margin_d)&&(left_margin_d>max_d))
+            {
+                gap_mid = (left_max+start_y)*0.5;
+                // gap_depth = abs(start_z);
+                // Check the gap is enought to pass through
+                std::cout << "[VISION] Left margin space -> mid: " << gap_mid << " | depth: " << gap_depth << std::endl;
+                if((left_margin_d>gap_min)&&(gap_depth>=min_depth))        
+                {
+                    // Show determined solution
+                    robot_control(left_margin_d,gap_mid,LEFT_MARGIN);            // Show determined solution
+                }else{
+                    std::cout << "[VISION] NO SOLUTIONS!" << std::endl;
+                    robot_control(left_margin_d,gap_mid,BLOCK);
+                }
+            }else
+            {
+                // When depth is below min_depth, the robot may have change to collide with some obstacles
+                std::cout << "[VISION] PCL space -> mid: " << gap_mid << " | depth: " << gap_depth << std::endl;
+                if(gap_depth>=min_depth)
+                {
+                    // Show determined solution
+                    robot_control(max_d,gap_mid,PCL_ALGO);
+                }else{
+                    std::cout << "[VISION] NO SOLUTIONS!" << std::endl;
+                    robot_control(max_d,gap_mid,BLOCK);
+                }
+            }
+            std::cout << std::endl;
+            // Publish navigation marker
+            arrow_end.x = 1.0;
+            arrow_end.y = gap_mid;
+            arrow_end.z = 0;  
+            navigation_marker.points.push_back(arrow_start);
+            navigation_marker.points.push_back(arrow_end);
+            navigation_marker.scale.x = 0.03;
+            navigation_marker.scale.y = 0.05;
+            navigation_marker.scale.z = 0.1;
+            navigation_marker.color.r = 0.2;
+            navigation_marker.color.g = 1.0;
+            navigation_marker.color.b = 1.0;
+            navigation_marker.color.a = 1.0;
+            navigate_marker_pub.publish(navigation_marker);
+
+        }else{
+            std::cout << "[VISION] Out of range: FORWARD!" << std::endl;
+            std::cout << std::endl;
+            robot_control(1000,0,EMPTY);
+            // Publish navigation marker
+            arrow_end.x = 1.0;
+            arrow_end.y = 0;
+            arrow_end.z = 0;  
+            navigation_marker.points.push_back(arrow_start);
+            navigation_marker.points.push_back(arrow_end);
+            navigation_marker.scale.x = 0.03;
+            navigation_marker.scale.y = 0.05;
+            navigation_marker.scale.z = 0.1;
+            navigation_marker.color.r = 0.2;
+            navigation_marker.color.g = 1.0;
+            navigation_marker.color.b = 1.0;
+            navigation_marker.color.a = 1.0;
+            navigate_marker_pub.publish(navigation_marker);
+        }
+
+    }
     // Publish right margin marker 
     right_limit_marker.points.push_back(arrow_start);
     right_limit_marker.points.push_back(right_limit_pt);

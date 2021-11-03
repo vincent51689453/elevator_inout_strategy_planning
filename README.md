@@ -1,5 +1,5 @@
 # elevator_inout_strategy_planning
-It is a obstacle avoidance package used in entering/leaving the elevator based on PCL and realsense. This package is developing with UbiquityRobot Magni.
+It is a strategy planning package used in entering/leaving the elevator based on PCL and realsense. This package is developing with UbiquityRobot Magni. 
 
 ## Prerequisites
 - ROS Melodic

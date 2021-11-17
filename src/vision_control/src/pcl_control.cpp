@@ -389,10 +389,18 @@ void cloud_callback (const sensor_msgs::PointCloud2 &cloud_msg)
             navigate_marker_pub.publish(navigation_marker);
 
         }else{
-            std::cout << "[VISION] Out of range: FORWARD!" << std::endl;
-            std::cout << std::endl;
-            robot_control(1000,0,EMPTY);
             
+            if(forward_delay>max_forward_delay)
+            {
+                std::cout << "[VISION] Out of range: FORWARD!" << std::endl;
+                std::cout << std::endl;
+                robot_control(1000,0,EMPTY);
+            }else{
+                std::cout << "[Schedule] Forced forward" << std::endl;
+                std::cout << std::endl;
+                robot_control(1000,0,EMPTY);                
+            }
+
             // Publish navigation marker
             arrow_end.x = 1.0;
             arrow_end.y = 0;
@@ -407,6 +415,7 @@ void cloud_callback (const sensor_msgs::PointCloud2 &cloud_msg)
             navigation_marker.color.b = 1.0;
             navigation_marker.color.a = 1.0;
             navigate_marker_pub.publish(navigation_marker);
+
             forward_delay ++;
         }
 

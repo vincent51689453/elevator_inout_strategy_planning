@@ -59,10 +59,13 @@ double rx = 0, ry = 0, rz = 0;                                              // C
 double _rx = 0, _ry = 0, _rz = 0;                                           // Initial and target euler angle
 double qx = 0, qy = 0, qz = 0, qw = 0;                                      // Current quaternion
 double backward_delay = 0;                                                  // Backward delay before turning
+double forward_delay = 0;                                                   // Forward delay at the very begining (force to move)
 const double max_backward_delay = 5;                                        // Allowed backward delay
+const double max_forward_delay = 3;                                         // Allowed forward delay
 const double max_odom_error = 0.3;                                          // Allowed odom error for rotation
 bool euler_lock = false;                                                    // Oodom logging
 double total_rz = 0;
+
 // Robot operation schedule
 enum taskType {ENTER_ELEVATOR,ROTATE_ITSELF,EXIT_ELEVATOR};                 // Operation sequences for the robot
 taskType robot_task = ENTER_ELEVATOR;                                       // Initialize robot operation task
@@ -276,7 +279,7 @@ void cloud_callback (const sensor_msgs::PointCloud2 &cloud_msg)
         }
 
         // If no valid linear_scan, just go forward
-        if(valid_linear_scan)
+        if((valid_linear_scan)&&(forward_delay == max_forward_delay))
         {
             max_d = 0;
             // Searching for 'GAP' between obstacles
@@ -389,6 +392,7 @@ void cloud_callback (const sensor_msgs::PointCloud2 &cloud_msg)
             std::cout << "[VISION] Out of range: FORWARD!" << std::endl;
             std::cout << std::endl;
             robot_control(1000,0,EMPTY);
+            
             // Publish navigation marker
             arrow_end.x = 1.0;
             arrow_end.y = 0;
@@ -403,6 +407,7 @@ void cloud_callback (const sensor_msgs::PointCloud2 &cloud_msg)
             navigation_marker.color.b = 1.0;
             navigation_marker.color.a = 1.0;
             navigate_marker_pub.publish(navigation_marker);
+            forward_delay ++;
         }
 
     }

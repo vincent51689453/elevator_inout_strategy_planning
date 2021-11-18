@@ -279,7 +279,7 @@ void cloud_callback (const sensor_msgs::PointCloud2 &cloud_msg)
         }
 
         // If no valid linear_scan, just go forward
-        if((valid_linear_scan)&&(forward_delay == max_forward_delay))
+        if((valid_linear_scan)&&(forward_delay >= max_forward_delay))
         {
             max_d = 0;
             // Searching for 'GAP' between obstacles
@@ -295,10 +295,11 @@ void cloud_callback (const sensor_msgs::PointCloud2 &cloud_msg)
                 {
                     max_d = d;
                     gap_mid = (iter->first+_y)*0.5; 
+                    // depth of a point in PCL
                     gap_depth = (iter->second);     
                 }
 
-                
+                               
                 // Update previous value
                 _y = iter->first;
 
